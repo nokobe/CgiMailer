@@ -1,24 +1,17 @@
-#!/usr/local/bin/perl
-### ---------------------------------------------------------------------- ###
+#!/usr/bin/perl
 #
-# CGI Mailer - a CGI program to send formatted email from HTML forms
-# 
-# *Requires* perl 5.001 or greater and the LWP module.
+#  Copyright (c)2007 The University of Melbourne, Inc. All Rights Reserved.
 #
-# *Requires* the MailTools module if you want to use Mail::Send
-# *Requires* the libnet module if you want to use Net::SMTP
+#  THE UNIVERSITY OF MELBOURNE MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE
+#  SUITABILITY OF THE SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT
+#  LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+#  PARTICULAR PURPOSE, OR NON-INFRINGEMENT. THE UNIVERSITY OF MELBOURNE SHALL
+#  NOT BE LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING,
+#  MODIFYING OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
 #
-# (c) Copyright The University of Melbourne, 1996-1999
-# Author: Martin Gleeson, <gleeson@unimelb.edu.au>
-#
-# This program is provided free of charge provided the Copyright notice
-# remains intact. Commercial organisations should contact the author for
-# licensing details if you wish to modify the source code in any form
-# other than to set configuration options as directed in the Administrator
-# Documentation. <http://www.unimelb.edu.au/cgi-mailer/>
-# No warranty is made, either expressed or implied. USE AT YOUR OWN RISK.
-#
-### ---------------------------------------------------------------------- ###
+# Redistribution and use in source and binary forms, with or without
+# modification, is permitted providing this entire header remains in tact
+# unmodified.
 #
 use lib '/servers/web/lib/perl5/site_perl/5.005';
 use MIME::Lite;
@@ -26,11 +19,7 @@ use Email::Valid;
 
 my $version = '$Revision: 1.52 $';
 ($version) = $version =~ / (\d+\.\d+) /;
-#
-# Created: 23 April 1996
-#
-# Change logs removed
-#
+
 ### ---------------------------------------------------------------------- ###
 #
 # Configurable settings - change these to reflect your local setup
