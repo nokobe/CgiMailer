@@ -1,13 +1,13 @@
 #!/usr/bin/perl
 #
-#  Copyright (c)2007 The University of Melbourne, Inc. All Rights Reserved.
+# Copyright (c)2007 The University of Melbourne, Inc. All Rights Reserved.
 # 
-#  THE UNIVERSITY OF MELBOURNE MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE
-#  SUITABILITY OF THE SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT
-#  LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-#  PARTICULAR PURPOSE, OR NON-INFRINGEMENT. THE UNIVERSITY OF MELBOURNE SHALL
-#  NOT BE LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING,
-#  MODIFYING OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
+# THE UNIVERSITY OF MELBOURNE MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE
+# SUITABILITY OF THE SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT
+# LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+# PARTICULAR PURPOSE, OR NON-INFRINGEMENT. THE UNIVERSITY OF MELBOURNE SHALL
+# NOT BE LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING,
+# MODIFYING OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, is permitted providing this entire header remains in tact
@@ -32,18 +32,18 @@ my $http_header = "Content-type: text/html\n\n";
 
 my $preamble = '
 <html>
-  <head>
-    <title>CGI-Mailer Response</title>
-    <style type="text/css">
-      * {font-size: 13px; font-family: Trebuchet MS,Tahoma,Verdana, sans-serif}
-      h1,h2 {font-size: 18px; color: #66a; }
-    </style>
-  </head>
-  <body>';
+<head>
+<title>CGI-Mailer Response</title>
+<style type="text/css">
+	* {font-size: 13px; font-family: Trebuchet MS,Tahoma,Verdana, sans-serif}
+	h1,h2 {font-size: 18px; color: #66a; }
+</style>
+</head>
+<body>';
 
 my $footer = '
-    <p>Further information about <a href="http://www.unimelb.edu.au/cgi-mailer/">cgi mailer</a>.</p>
-  </body>
+<p>Further information about <a href="http://www.unimelb.edu.au/cgi-mailer/">cgi mailer</a>.</p>
+</body>
 </html>';
 
 
@@ -156,9 +156,9 @@ my $footer = '
 		$content =~ s/^\s*$//;
 		if(! $content || length($content) == 0) {
 			$data = "  <h2>CGI Mailer: Error</h2>\n" .
-	        		"  <p>An error has occurred while ".
+			 		"  <p>An error has occurred while ".
 					"attempting to submit your form:</p>\n" .
-	        		"  <blockquote>The input field ".
+			 		"  <blockquote>The input field ".
 					"<strong>$required{$r_field}</strong> " .
 					"           is <font color=\"#FF0000\">".
 					"required</font>\n" .
@@ -182,8 +182,8 @@ my $footer = '
 	$destination = $INPUT{'destination'};
 	if(!$destination) {
 		$err_text = "You must add a hidden field to specify ".
-                    "the destination of the email:<br>" .
-			        "&lt;input type=&quot;hidden&quot; ".
+					"the destination of the email:<br>" .
+					"&lt;input type=&quot;hidden&quot; ".
 					"name=&quot;destination&quot; " .
 					"value=&quot;foo\@bar.com&quot;&gt;";
 		error($err_text);
@@ -194,13 +194,7 @@ my $footer = '
 	if (exists $INPUT{'mailtouser'} && exists $INPUT{$INPUT{'mailtouser'}} ) {
 		my $user_addr = $INPUT{$INPUT{'mailtouser'}};
 		$user_addr =~ /^\s*([-_\@\w.,]+)\s*$/;
-		#if(my $checked_address = Email::Valid->address( -address=> $1, -mxcheck => 1 ) ) {
-			$destination .= ",${checked_address}";
-		#} else {
-		#	$err_text = "Detected mailtouser option and value but email value was invalid!<br>" . 
-                #        "(Error note: ${Email::Valid::Details})";
-		#    error($err_text);
-		#}
+		$destination .= ",${checked_address}";
 	}
 
 	$subject = $INPUT{'subject'};
@@ -234,7 +228,7 @@ my $footer = '
 			$default_url =~ s|^(.*)/[^/]*$|$1/cmail-dat.def|;
 		}
 		$format_url = $url;
-                	
+
 		# grab the format file
 		$format = &URLget($url);
 
@@ -278,15 +272,15 @@ my $footer = '
 		$data = $response if($response);
 	} else {
 		$data = "  <h3>CGI Mailer: Submission Successful</h3>\n" .
-		        "  <p>Your form has been successfully ".
-                "submitted by the server\n </p>";
+			"  <p>Your form has been successfully ".
+			"submitted by the server\n </p>";
 	}
 
 	if( $INPUT{'nodata'} ne 'true') {
 		# mail the formatted message
 		my %mail;
-		$mail{To}           = $destination;
-		$mail{From}         = $from_addr if $from_addr;
+		$mail{To} = $destination;
+		$mail{From} = $from_addr if $from_addr;
 		$mail{"Subject:" } = $subject;
 		$mail{"Reply-to:"} = $reply_to if $reply_to;
 
@@ -320,9 +314,9 @@ my $footer = '
 sub error {
 	my $errstr = pop(@_);
 	$data = "  <h2>CGI Mailer: Error</h2>\n" .
-	        "  <p>An error has occurred while attempting to submit your form:</p>\n" .
-	        "  <blockquote><b>$errstr</b></blockquote>\n" .
-	        "  <p>Please report this error to the maintainer of the form</p>\n";
+			"  <p>An error has occurred while attempting to submit your form:</p>\n" .
+			"  <blockquote><b>$errstr</b></blockquote>\n" .
+			"  <p>Please report this error to the maintainer of the form</p>\n";
 
 	select STDOUT;
 	print $http_header;
@@ -436,14 +430,12 @@ sub log_access {
 	$date = &time_now();
 	if(open LOG,">> $log") {
 		print LOG "[$date] host=[$ENV{'REMOTE_HOST'}] ".
-                	  "referer=[$ENV{'HTTP_REFERER'}] data=[$format_url] " .
-			  "resp=[$response_url] to=[$destination] subject=[$subject] ".
-                	  "reply-to=[$reply_to]";
+			"referer=[$ENV{'HTTP_REFERER'}] data=[$format_url] " .
+			"resp=[$response_url] to=[$destination] subject=[$subject] ".
+			"reply-to=[$reply_to]";
 		print LOG " ERROR=[$errstr]" if $errstr;
 		print LOG " from=[$from_addr]" if $from_addr;
 		print LOG "\n";
 		close LOG;
-	} else {
-		#die(" Couldn't open log file [$log]: $!");
 	}
 }
