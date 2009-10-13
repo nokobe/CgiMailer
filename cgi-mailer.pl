@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 #
 #  Copyright (c)2007 The University of Melbourne, Inc. All Rights Reserved.
-#
+# 
 #  THE UNIVERSITY OF MELBOURNE MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE
 #  SUITABILITY OF THE SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT
 #  LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
@@ -13,60 +13,14 @@
 # modification, is permitted providing this entire header remains in tact
 # unmodified.
 #
-use lib '/servers/web/lib/perl5/site_perl/5.005';
 use MIME::Lite;
-use Email::Valid;
+use Net::SMTP;
+use LWP::UserAgent;
 
-my $version = '$Revision: 1.52 $';
-($version) = $version =~ / (\d+\.\d+) /;
-
-### ---------------------------------------------------------------------- ###
-#
-# Configurable settings - change these to reflect your local setup
-#
-### ---------------------------------------------------------------------- ###
-# Do you want to use the Net::SMTP module rather than sendmail directly?
-
-# $net_smtp = "yes";
-
-# You will also need to set a mailhost to use to send the message if you
-# use this option
-
-# $mailhost = "mailhost.wherever.com";
-
-### ---------------------------------------------------------------------- ###
-# Do you want to use the Mail::Send module rather than sendmail directly?
-
-# $mail_send = "yes";
-
-### ---------------------------------------------------------------------- ###
-# Default from address if non is specified:
-my $from_default = 'cgi-mailer submission <http@myriad.its.unimelb.edu.au>';
-
-### ---------------------------------------------------------------------- ###
-# If you're not using the Mail::Send module or the Net::SMTP, then you'll
-# need to set the full path to sendmail on your machine
-my $sendmail = "/usr/sbin/sendmail";
-
-### ---------------------------------------------------------------------- ###
-# If you're using sendmail directly but your line length may exceed 1000
-
-my $mail_mimelite = "yes";
-
-### ---------------------------------------------------------------------- ###
-# Full path to log file (for logging cgi-mailer usage).
-
-my $log = "/var/log/apache/web/cgi-mailer.log";
-
-### ---------------------------------------------------------------------- ###
-# Domain name(s) of your local network
-#
-# This restricts the use of cgi-mailer to those within your organisation,
-# or the domains named. Syntax is 'domain.abc.xyz$' or '^128.250.' or
-# 'domain.one.xyz$|domain.two.xyz$|^128.250.|domain.four.xyz$', etc
-#
-# comment the line out if you don't want to restrict access (not recommended)
-
+my $version = '2.1';
+my $smtp = 'smtp.unimelb.edu.au';
+my $from_default = 'cgi-mailer submission <no-reply@unimelb.edu.au>';
+my $log = "/var/log/httpd/cgi-mailer.log";
 my $local_network = 'unimelb.edu.au$|mu.oz.au$|^128.250.|^192.43.207.|' .
                     '^192.43.209.|^192.101.254.|^202.0.67.|^202.0.68.|' .
                     '^203.0.40.|^203.0.141.|^203.2.80.|^203.3.164.|' .
@@ -74,168 +28,49 @@ my $local_network = 'unimelb.edu.au$|mu.oz.au$|^128.250.|^192.43.207.|' .
                     '^203.14.107.|^203.16.40.|^203.17.189.|^203.18.231.|' .
                     '^203.22.108.|^203.26.118.|^203.26.134.|^203.28.230.|' .
                     '^203.28.240.|^203.62.232.|^210.8.192.';
-
-### ---------------------------------------------------------------------- ###
-# Alternate paths/urls to cgi-mailer configuration information
-# This is required because of the behaviour of the local director - 
-# servers on the same segment behind the localdirector cannot access
-# addresses hosted by the director on that segment - ie www.unimelb.edu.au
-# _cannot_ access the address www.its.unimelb.edu.au.
-# For locally hosts virtual servers, the files will be obtained locally.
-# For other machines on this segment the real machine name will be used.
-
-# Base of localy hosted domains
-my $domain_base = "/servers/http";
-
-# Apache domain config base
-my $apache_domain_config_base = "/etc/apache/Domains";
-
-# Local domains need to be dealt with specially because we can't access
-# local domains via the network (due to the local director).
-# If the domain is hosted on the main web server, retrieve the files
-# via the local filesystem
-
-# The local domains are found from the localfile system
-opendir(DIR, $domain_base) or die "Can't read directory: $domain_base";
-my @local_domains = grep {!/^\.*$/} readdir(DIR);
-closedir DIR;
-
-# In addition there are server aliases in action, these need to be
-# treated slightly differently.
-my %local_serveraliases = ();
-opendir(DIR, $apache_domain_config_base) or 
-                     die "Can't read directory: $apache_domain_config_base";
-
-for my $conf_file (readdir(DIR)) {
-	my $servername;
-	my $serveralias;
-
-	# Read file, determine server name from ServerName directive
-	open FILE, "< $apache_domain_config_base/$conf_file" or next;
-	while (<FILE>) {
-		next unless /^ServerName/i;
-		/^ServerName\s+(\S+)$/i;
-		$servername = $1;
-	}
-	close FILE;
-
-	# Check if there was no server name (this would be 
-        # bad, but just in case)
-	next unless $servername;
-
-	# Read file, for each ServerAlias directive add an 
-        # entry to the server alias hash
-	open FILE, "< $apache_domain_config_base/$conf_file" or next;
-	while (<FILE>) {
-		next unless /^ServerAlias/i;
-		/^ServerAlias\s+(\S+)$/i;
-		$serveralias = $1;
-		$local_serveraliases{$serveralias} = $servername;
-	}
-	close FILE;
-}
-closedir DIR;
-
-# Webraft details
-my $webraft_url = "webraft.its.unimelb.edu.au";
-my $webraft_server = "suske.its.unimelb.edu.au";
-
-### ---------------------------------------------------------------------- ###
-#   End of configurable settings - no editing required below this line.
-### ---------------------------------------------------------------------- ###
-
-### ---------------------------------------------------------------------- ###
-
-### ---------------------------------------------------------------------- ###
-#
-# Header for default CGI response page
+my $http_header = "Content-type: text/html\n\n";
 
 my $preamble = '
 <html>
- <head>
-  <title>CGI-Mailer Response
- </title>
-</head>
- <body bgcolor="#FFFFFF">
-  <h2>CGI-Mailer Response
- </h2>
-';
-
-### ---------------------------------------------------------------------- ###
-# Footer for default CGI response page
+  <head>
+    <title>CGI-Mailer Response</title>
+    <style type="text/css">
+      * {font-size: 13px; font-family: Trebuchet MS,Tahoma,Verdana, sans-serif}
+      h1,h2 {font-size: 18px; color: #66a; }
+    </style>
+  </head>
+  <body>';
 
 my $footer = '
-  <!-- =================================================================== -->
-  <hr>
-  <p>Produced by <a href="http://martin.gleeson.com/cgi-mailer/">cgi-mailer.</a>
- </p>
-  <!-- =================================================================== -->
-  <hr>
- </body>
-</html>
-';
+    <p>Further information about <a href="http://www.unimelb.edu.au/cgi-mailer/">cgi mailer</a>.</p>
+  </body>
+</html>';
 
-# $debug=1;
 
-use LWP::UserAgent;
-
-my $http_header = "Content-type: text/html\n\n";
-
-my $method = $ENV{REQUEST_METHOD};
-
-if( $method eq "GET" )
-{
-	my $data = "  <h2>Incorrect METHOD</h2>\n" .
-		"  <p>This CGI Program should be referenced with \n" .
-	        "     a METHOD of POST.</p>\n";
-	print $http_header;
-	print $preamble;
-	print $data;
-	print $footer;
-	exit(0);
-
-}
-elsif( $method eq "POST" )
-{
 	%INPUT = &get_input(POST);
 	
 	# get the format file location
-	#$url = $ENV{'HTTP_REFERER'} || $INPUT{'CgiMailerReferer'};
 	$url = $INPUT{'CgiMailerReferer'} || $ENV{'HTTP_REFERER'};
-
 
 	if(! $url) {
 		error("Your browser or proxy server is not sending ".
-                      "a Referer header and CGI-Mailer needs one to ".
-                      "work. Please notify the maintainer of the form ".
-                      "and ask them to add the appropriate field to ".
-                      "the form.");
+              "a Referer header and CGI-Mailer needs one to ".
+              "work. Please notify the maintainer of the form ".
+              "and ask them to add the appropriate field to ".
+              "the form.");
 	}
 
-	# remove named anchor, if any
-	$url =~ s/\#.+$//;
-
-	# remove query string, if any
-	$url =~ s/\?.+$//;
-
-	# store the original page URL for later reference
-	$orig_url = $url;
-
-	# check if user is mistakenly using page on local hard disk
-	&error("The form you are submitting is on your hard disk.
-		It needs to be on a web server for cgi-mailer to work.\n")
-		if( $url =~ /^file:\/\/\//i);
+	$url =~ s/\#.+$//;    # remove named anchor, if any
+	$url =~ s/\?.+$//;    # remove query string, if any
+	$orig_url = $url;     # store the original page URL for later reference
 
 	# check the domain is OK
 	if($local_network) {
-		# get the hostname
-		$host = $url;
-		# strip off the leading protocol://
-		$host =~ s/^\w+:\/\///;
-		# strip off the trailing /abc/def/xyz.html
-		$host =~ s/([^\/]+)\/.*/$1/;
-		# strip off the trailing :port, if any
-		$host =~ s/\:\d+$//;
+		$host = $url;                # get the hostname
+		$host =~ s/^\w+:\/\///;      # strip off the leading protocol://
+		$host =~ s/([^\/]+)\/.*/$1/; # strip off the trailing /abc/def/xyz.html
+		$host =~ s/\:\d+$//;         # strip off the trailing :port, if any
+
         # Attempt to find the IP address of the host
         @host_gethostbyname = gethostbyname($host);
         if ( $? == 0 ) {
@@ -249,13 +84,13 @@ elsif( $method eq "POST" )
             # value matches a valid local network value
             $host_addr = $host;
         }
-		if( $host !~ m/$local_network/i && $host_addr !~ m/$local_network/i ) {
-			$local_network =~ s/[\^\$]//g;
-			@domains = split(/\|/,$local_network);
-			$domains = join(', ',@domains);
-			error("cgi-mailer can only be used within the ".
-                              "domains $domains");
-		}
+	if( $host !~ m/$local_network/i && $host_addr !~ m/$local_network/i ) {
+		$local_network =~ s/[\^\$]//g;
+		@domains = split(/\|/,$local_network);
+		$domains = join(', ',@domains);
+		error("cgi-mailer can only be used within the ".
+                      "domains $domains");
+	}
 	}
 	$url = $orig_url;
 	if($url =~ /\/$/){
@@ -263,15 +98,15 @@ elsif( $method eq "POST" )
 			$orig_url = $orig_url . "/" . $INPUT{'index-file'};
 		} else {
 			$err_text = "If you want to use cgi-mailer ".
-                                    "with an index file (i.e. a URL ".
-                                    "ending with '/'),<br>" .
-				    "you must add a hidden field to ".
-                                    "specify the name of the index file:<br>" .
-				    "&lt;input type=&quot;hidden&quot; ".
-                                    "name=&quot;index-file&quot; " .
-				    "value=&quot;index.html&quot;&gt;<br>".
-				    "(or the name of your index file if ".
-                                    "it isn't &quot;index.html&quot;";
+                        "with an index file (i.e. a URL ".
+                        "ending with '/'),<br>" .
+				        "you must add a hidden field to ".
+                        "specify the name of the index file:<br>" .
+				        "&lt;input type=&quot;hidden&quot; ".
+                        "name=&quot;index-file&quot; " .
+				        "value=&quot;index.html&quot;&gt;<br>".
+				        "(or the name of your index file if ".
+                        "it isn't &quot;index.html&quot;";
 			&error($err_text);
 		}
 	}
@@ -292,8 +127,7 @@ elsif( $method eq "POST" )
 		$req = &URLget($default_url);
 		$req_url = $default_url;
 		$required_fields = 0;
-	}
-	else { 		#$req !~ /%%%ERROR%%%/ 
+	} else { 		#$req !~ /%%%ERROR%%%/ 
 		$required_fields = 1;
 		@lines = split(/[\013\015\r\n]+/,$req);
 		foreach my $line (@lines) {
@@ -305,7 +139,7 @@ elsif( $method eq "POST" )
 		}
 	}
 	push(@required_fields, 'destination') 
-                           if(!grep(/^destination$/,@required_fields));
+		if(!grep(/^destination$/,@required_fields));
 
 	foreach my $key (keys(%INPUT)) {
 		# get the mail headers from the form input
@@ -321,18 +155,18 @@ elsif( $method eq "POST" )
 		my $content = $INPUT{$r_field};
 		$content =~ s/^\s*$//;
 		if(! $content || length($content) == 0) {
-			$data = "  <h2>Error.</h2>\n" .
+			$data = "  <h2>CGI Mailer: Error</h2>\n" .
 	        		"  <p>An error has occurred while ".
-                                "attempting to submit your form:</p>\n" .
+					"attempting to submit your form:</p>\n" .
 	        		"  <blockquote>The input field ".
-                                "<strong>$required{$r_field}</strong> " .
-				"           is <font color=\"#FF0000\">".
-                                "required</font>\n" .
-				"           and must be filled in before ".
-                                "you can submit the form.\n" .
-				" </blockquote>\n" .
-				"  <p>Please go back, fill in the required ".
-                                "field and re-submit the form.</p>\n";
+					"<strong>$required{$r_field}</strong> " .
+					"           is <font color=\"#FF0000\">".
+					"required</font>\n" .
+					"           and must be filled in before ".
+					"you can submit the form.\n" .
+					" </blockquote>\n" .
+					"  <p>Please go back, fill in the required ".
+					"field and re-submit the form.</p>\n";
 
 			select STDOUT;
 			print $http_header;
@@ -348,32 +182,29 @@ elsif( $method eq "POST" )
 	$destination = $INPUT{'destination'};
 	if(!$destination) {
 		$err_text = "You must add a hidden field to specify ".
-                            "the destination of the email:<br>" .
-			    "&lt;input type=&quot;hidden&quot; ".
-                            "name=&quot;destination&quot; " .
-			    "value=&quot;foo\@bar.com&quot;&gt;";
+                    "the destination of the email:<br>" .
+			        "&lt;input type=&quot;hidden&quot; ".
+					"name=&quot;destination&quot; " .
+					"value=&quot;foo\@bar.com&quot;&gt;";
 		error($err_text);
 	}
 
-	if (   exists $INPUT{'mailtouser'} 
-            && exists $INPUT{$INPUT{'mailtouser'}} ) {
-		# The mailtouser option has been specified 
-                # and the field specified exists - Test the 
-                # value and append to the destination if all is well
+	# The mailtouser option has been specified and the field specified
+	# exists. Test the value and append to the destination if all is well
+	if (exists $INPUT{'mailtouser'} && exists $INPUT{$INPUT{'mailtouser'}} ) {
 		my $user_addr = $INPUT{$INPUT{'mailtouser'}};
 		$user_addr =~ /^\s*([-_\@\w.,]+)\s*$/;
-		if ( my $checked_address = Email::Valid->address( -address=> $1, 
-                                                          -mxcheck => 1 ) ) {
+		#if(my $checked_address = Email::Valid->address( -address=> $1, -mxcheck => 1 ) ) {
 			$destination .= ",${checked_address}";
-		} else {
-			$err_text = "Detected mailtouser option and value but email value was invalid!<br>" . 
-                        "(Error note: ${Email::Valid::Details})";
-		    error($err_text);
-		}
+		#} else {
+		#	$err_text = "Detected mailtouser option and value but email value was invalid!<br>" . 
+                #        "(Error note: ${Email::Valid::Details})";
+		#    error($err_text);
+		#}
 	}
 
 	$subject = $INPUT{'subject'};
-		
+
 	if ( exists $headers{'Reply-To'} ) {
 		$reply_to = $headers{'Reply-To'};
 		delete $headers{'Reply-To'};
@@ -388,15 +219,6 @@ elsif( $method eq "POST" )
 	} elsif ( exists $INPUT{'From'} ) {
 		$from_addr = $INPUT{'From'};
 	} else {
-		# TODO 10/10/2001 bjdean:
-		# Add this error in later - need to let users of 
-                # cgi-mailer know about change
-		# &error("You must specify a From address using ".
-                #        "the field name <font colour=\"#FF0000\">".
-                #        "header:From</font>")
-		#
-		# In the meantime:
-
 		# No From address specified, set default address
 		$from_addr = $from_default if(! $from_addr);
 	}
@@ -415,7 +237,7 @@ elsif( $method eq "POST" )
                 	
 		# grab the format file
 		$format = &URLget($url);
-                
+
 		if ($format =~ /%%%ERROR%%%/ ) {
 			# Check default file
 			$format = &URLget($default_url);
@@ -423,7 +245,7 @@ elsif( $method eq "POST" )
 		}
 
 		error("Couldn't get format file: $url")
-                           if( $format =~ /%%%ERROR%%%/ );
+			if( $format =~ /%%%ERROR%%%/ );
 
 		# substitute values for variables in the format file
 		$format =~ s/\$ENV\{\'?([a-zA-Z0-9\_\-\:]+)\'?\}/$ENV{$1}/g;
@@ -455,118 +277,34 @@ elsif( $method eq "POST" )
 	if($response !~ /%%%ERROR%%%/) {
 		$data = $response if($response);
 	} else {
-		$data = "  <h3>Submission Successful</h3>\n" .
+		$data = "  <h3>CGI Mailer: Submission Successful</h3>\n" .
 		        "  <p>Your form has been successfully ".
-                        "submitted by the server\n </p>";
+                "submitted by the server\n </p>";
 	}
 
 	if( $INPUT{'nodata'} ne 'true') {
 		# mail the formatted message
-		if($mail_send) {
-			use Mail::Send;
-			use Mail::Mailer;
+		my %mail;
+		$mail{To}           = $destination;
+		$mail{From}         = $from_addr if $from_addr;
+		$mail{"Subject:" } = $subject;
+		$mail{"Reply-to:"} = $reply_to if $reply_to;
 
-			$msg = new Mail::Send Subject=>$subject, 
-                                              To=>$destination;
-
-			$msg->add('From',$from_addr);
-
-			$msg->add('Reply-To',$reply_to) if($reply_to);
-
-			foreach my $header (keys(%headers)) {
-				$msg->set($header, $headers{$header});
-			}
-			$msg->set("X-Generated-By",
-                                  "CGI-Mailer v$version: ".
-                                  "http://www.unimelb.edu.au/cgi-mailer/");
-			$msg->set("X-Form","$ENV{'HTTP_REFERER'}");
-
-			# Launch mailer and set headers. 
-			$fh = $msg->open;
-			print $fh $format;
-			# complete the message and send it
-			$fh->close;
-
-		} elsif($net_smtp) {
-			use Net::SMTP;
-
-			$smtp = Net::SMTP->new($mailhost);
-
-			$smtp->mail($from_addr) if $from_addr;
-			$smtp->to($destination);
-
-			$smtp->data();
-			$smtp->datasend("To: $destination\n");
-			foreach $header (keys(%headers)) {
-				$smtp->datasend("$header: $headers{$header}\n");
-			}
-			$smtp->datasend("Subject: $subject\n");
-			$smtp->datasend("X-Generated-By: CGI-Mailer ".
-                                     "v$version: ".
-                                     "http://www.unimelb.edu.au/cgi-mailer/\n");
-			$smtp->datasend("X-Form: $ENV{'HTTP_REFERER'}\n");
-			$smtp->datasend("\n");
-			for ($i = 0; $i <= length($format); $i += 999) {
-				$smtp->datasend(substr($format, $i, 999) . "\r");
-			}
-			$smtp->dataend();
-
-			$smtp->quit;
-		} elsif($mail_mimelite) {
-                        my %mail;
-                        $mail{To}           = $destination;
-                        $mail{From}         = $from_addr if $from_addr;
-                        $mail{"Subject:" } = $subject;
-                        $mail{"Reply-to:"} = $reply_to if $reply_to;
-
-			foreach (keys(%headers))
-			{
-				my $key = (/:/) ? "$_": "$_ :";
-				$mail{$key} = $headers{$_};
-			}
-
-			$mail{"X-Generated-By:"} = "CGI-Mailer v$version: ".
-                                     "http://www.unimelb.edu.au/cgi-mailer/";
-			$mail{"X-Form:" }  = $ENV{'HTTP_REFERER'};
-			$mail{"Encoding"} = "quoted-printable";
-			$mail{"Type"    } = "TEXT";
-
-			# Translate (Windows|Unix|Mac) EOL with local EOL
-			$format =~ s/(?:\x0d\x0a|\x0a|\x0d)/\n/g;
-
-			my $msg = MIME::Lite->new(%mail, Data=>$format);
-			if( ! -e "$sendmail") { 
-                                error("Couldn't find sendmail ".
-                                      "[$sendmail]: $!"); 
-                        }
-
-			open(MAIL,"| $sendmail -t") or 
-                                 error("Couldn't open sendmail process: $!");
-			$msg->print(\*MAIL);
-			close MAIL;
-		} else {
-			if( ! -e "$sendmail") { 
-                                error("Couldn't find sendmail ".
-                                      "[$sendmail]: $!"); 
-                        }
-
-			open(MAIL,"| $sendmail -t") or 
-                                 error("Couldn't open sendmail process: $!");
-			select MAIL;
-			print "To: $destination\n";
-			print "Subject: $subject\n";
-			print "From: $from_addr\n" if $from_addr;
-			print "Reply-to: $reply_to\n" if $reply_to;
-			foreach $header (keys(%headers)) {
-				print "$header: $headers{$header}\n";
-			}
-			print "X-Generated-By: CGI-Mailer v$version: ".
-                              "http://www.unimelb.edu.au/cgi-mailer/\n";
-			print "X-Form: $ENV{'HTTP_REFERER'}\n";
-			print "\n";
-			print "$format";
-			close MAIL;
+		foreach (keys(%headers)) {
+			my $key = (/:/) ? "$_": "$_ :";
+			$mail{$key} = $headers{$_};
 		}
+
+		$mail{"X-Generated-By:"} = "CGI-Mailer v$version";
+		$mail{"X-Form:"} = $ENV{'HTTP_REFERER'};
+		$mail{"Encoding"} = "quoted-printable";
+		$mail{"Type"} = "TEXT";
+
+		# Translate (Windows|Unix|Mac) EOL with local EOL
+		$format =~ s/(?:\x0d\x0a|\x0a|\x0d)/\n/g;
+
+		my $msg = MIME::Lite->new(%mail, Data=>$format);
+		$msg->send('smtp', $smtp);
 	}
 
 	&log_access();
@@ -578,13 +316,12 @@ elsif( $method eq "POST" )
 	print $response unless $default;
 	print $footer if $default;
 	exit(0);
-}
-### ---------------------------------------------------------------------- ###
+
 sub error {
 	my $errstr = pop(@_);
-	$data = "  <h2>Error.</h2>\n" .
-	        "  <p>An error has occurred while attempting to submit your form</p>\n" .
-	        "  <p>The Error is: </p>\n<blockquote><b>$errstr</b></blockquote>\n" .
+	$data = "  <h2>CGI Mailer: Error</h2>\n" .
+	        "  <p>An error has occurred while attempting to submit your form:</p>\n" .
+	        "  <blockquote><b>$errstr</b></blockquote>\n" .
 	        "  <p>Please report this error to the maintainer of the form</p>\n";
 
 	select STDOUT;
@@ -597,7 +334,7 @@ sub error {
 
 	exit(0);
 }
-### ---------------------------------------------------------------------- ###
+
 sub get_input{
 
 	$method = pop(@_);
@@ -634,134 +371,79 @@ sub get_input{
 	}
 	return (%INPUT_ARRAY);
 }
-### ---------------------------------------------------------------------- ###
+
 sub title_case {
 	$_ = pop(@_);
 	$_ = "\L$_";
 	s/(\b[a-z])/\U$1/g;
 	$_;
 }
-### ---------------------------------------------------------------------- ###
-sub URLget{
+
+sub URLget {
 	my $URL = pop(@_);
 	my $ret;
 
-	# Deconstruct URL
-	my $domain = $URL;
-	# strip off the leading protocol://
-	$domain =~ s/^\w+:\/\///;
+	my $domain = $URL;             # Deconstruct URL
+	$domain =~ s/^\w+:\/\///;      # strip off the leading protocol://
 
 	my $path = $domain;
-	# strip off the trailing /abc/def/xyz.html
-	$domain =~ s/([^\/]+)\/.*/$1/;
+	$domain =~ s/([^\/]+)\/.*/$1/; # strip off the trailing /abc/def/xyz.html
 	$path =~ s/[^\/]+(\/.*)$/$1/;
 
-	# strip off the trailing :port, if any
-	$domain =~ s/\:\d+$//;
+	$domain =~ s/\:\d+$//;         # strip off the trailing :port, if any
 
-	# Data aquisition is dependant on the destination. Due to the local
-	# director restrictions, the web server cannot access any of the
-	# virtual servers or the webraft address because they are on the
-	# same segment behind the local director.
-	#
-	# If the data is on a locally hosted domain, get the file contents
-	# from the local filesystem.
-	#
-	# If the data is on webraft rewrite the url to go direct to the
-	# webraft server name.
+	$ua = new LWP::UserAgent;
+	$ua->agent("cgi-mailer/$version");
+	$ua->timeout(1);
+	$ua->proxy(['http'], 'http://wwwproxy.unimelb.edu.au:8000');
 
-	if ( grep {/$domain/} (@local_domains) ) {
-		# Construct file location
-		my $local_file = "${domain_base}/${domain}/docs${path}";
+	my $req = new HTTP::Request GET => "$URL";
 
-		open FILE, "<${local_file}" or return '%%%ERROR%%%';
-		my $ret = "";
-		while (<FILE>) {
-			$ret .= $_;
-		}
+	$req->header('Accept' => '*/*'); # Required for older versions of Microsoft IIS
+	my $res = $ua->request($req);
 
-		log_access("Locally hosted domain - fetching ${local_file}");
-
-		return $ret;
-	} elsif ( grep {/$domain/} (keys %local_serveraliases) ) {
-		# Construct file location using actual server directory
-		my $local_file = "${domain_base}/".
-                                 "$local_serveraliases{$domain}/docs${path}";
-
-		open FILE, "<${local_file}" or return '%%%ERROR%%%';
-		my $ret = "";
-		while (<FILE>) {
-			$ret .= $_;
-		}
-
-		log_access("Locally hosted ServerAlias domain - ".
-                           "fetching ${local_file}");
-		return $ret;
+	if ($res->is_success) {
+		$ret = $res->content;
 	} else {
-		# Rewrite URL to webraft server if necessary
-		if ( $URL =~ /$webraft_url/ ) {
-			$URL =~ s/$webraft_url/$webraft_server/;
-		}
-
-		# Create a user agent object
-		$ua = new LWP::UserAgent;
-		$ua->agent("cgi-mailer.pl/$version " . $ua->agent);
-	
-		# Create a request
-		my $req = new HTTP::Request GET => "$URL";
-	
-		# Accept all data types. This is specifically for Microsloth's
-		# IIS, which won't properly default to */* and throws a 406.
-		$req->header('Accept' => '*/*');
-	
-		# Pass request to the user agent and get a response back
-		my $res = $ua->request($req);
-	
-		# Check the outcome of the response
-		if ($res->is_success) {
-			$ret = $res->content;
-		} else {
-			$ret = '%%%ERROR%%%';
-		}
-
-		log_access("Remote domain - fetching ${URL}");
-
-		return $ret;
+		$ret = '%%%ERROR%%%';
 	}
 
+	log_access("Remote domain - fetching ${URL}");
+
+	return $ret;
 }
-### ---------------------------------------------------------------------- ###
+
 sub time_now {
-        my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst);
+	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst);
 	my %months = ( '0','Jan', '1','Feb', '2','Mar', '3','Apr',
 		'4','May', '5','Jun', '6','Jul', '7','Aug',
 		'8','Sep', '9','Oct', '10','Nov', '11','Dec');
 	my $now;
 
-        ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-        $year += 1900; $hour = "0" . $hour if($hour < 10);
-        $min = "0" . $min if($min < 10); $sec = "0" . $sec if($sec < 10);
+	($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+	$year += 1900; $hour = "0" . $hour if($hour < 10);
+	$min = "0" . $min if($min < 10); $sec = "0" . $sec if($sec < 10);
 
-        $now = "$hour:$min:$sec $mday $months{$mon} $year";
+	$now = "$hour:$min:$sec $mday $months{$mon} $year";
 
-        return $now;
+	return $now;
 }
-### ---------------------------------------------------------------------- ###
+
 sub log_access {
 	my $errstr = pop(@_);
 	my $date;
 
-	# log the access
 	$date = &time_now();
-	open LOG,">> $log" or die(" Couldn't open log file [$log]: $!");
-	print LOG "[$date] host=[$ENV{'REMOTE_HOST'}] ".
-                  "referer=[$ENV{'HTTP_REFERER'}] data=[$format_url] " .
-		  "resp=[$response_url] to=[$destination] subject=[$subject] ".
-                  "reply-to=[$reply_to]";
-	print LOG " ERROR=[$errstr]" if $errstr;
-	print LOG " from=[$from_addr]" if $from_addr;
-	print LOG "\n";
-	close LOG;
-
-	return;
+	if(open LOG,">> $log") {
+		print LOG "[$date] host=[$ENV{'REMOTE_HOST'}] ".
+                	  "referer=[$ENV{'HTTP_REFERER'}] data=[$format_url] " .
+			  "resp=[$response_url] to=[$destination] subject=[$subject] ".
+                	  "reply-to=[$reply_to]";
+		print LOG " ERROR=[$errstr]" if $errstr;
+		print LOG " from=[$from_addr]" if $from_addr;
+		print LOG "\n";
+		close LOG;
+	} else {
+		#die(" Couldn't open log file [$log]: $!");
+	}
 }
