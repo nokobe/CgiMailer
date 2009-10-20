@@ -107,17 +107,15 @@ field which specifies the name of the index file:
 
 Where _index.html_ is the name of the html file containing the form.
 
-## Configuration of "From" address for form submission emails
+## Specifying a From email address
 
-To facilitate the configuration of auto-responders to form submissions the
-"From" address of email submissions can be specified:
+By defult, emails will appear to be from a default email address as configured
+by the person who installed CgiMailer. If you wish to use a From address other
+than the default, you can add the following to your form:
 
 <pre class="prettyprint lang-html">
 &lt;input type="hidden" name="From" value="bob@example.com" /&gt;
 </pre>
-
-If a "From" address is not specified the default email address configured
-by the system administrator will be used.
 
 ## Default required, data and response files
 
