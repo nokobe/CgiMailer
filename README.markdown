@@ -31,7 +31,7 @@ Here is an example of a working form:
 
 <pre class="prettyprint lang-html">
     &lt;form method="post" action="http://example.com/cgi-bin/cgi-mailer.pl"&gt;
-    &lt;input type="hidden" name="destination" value="example@unimelb.edu.au"&gt;
+    &lt;input type="hidden" name="destination" value="destination@example.com"&gt;
     &lt;input type="hidden" name="subject" value="testing cgi-mailer"&gt;
     &lt;b&gt;Name:&lt;/b&gt; &lt;input type="text" name="name" size="30"&gt;&lt;br/&gt;
     &lt;b&gt;Email address:&lt;/b&gt; &lt;input type="text" name="email_address" size="30"&gt;&lt;br/&gt;
@@ -97,14 +97,15 @@ the user to fill in that particular field.
 
 ## Handling case where filename is index.html
 
-If you want to use an index file for your form (i.e. where the
-URL of the page ends in '/'), you will need to include a hidden
+In some cases the URL of your form will not end in _.html_ (i.e. where the
+URL of the page ends in '/'), in this case you will need to include a hidden
 field which specifies the name of the index file:
 
-i.e. <tt>&lt;input name=&quot;index-file&quot;
- value=&quot;index.html&quot; type=&quot;hidden&quot;&gt;</tt><br>
+<pre class="prettyprint lang-html">
+&lt;input name="index-file" value="index.html" type="hidden"&gt;
+</pre>
 
-You can replace &quot;index.html&quot; with the appropriate filename.
+Where _index.html_ is the name of the html file containing the form.
 
 ## Configuration of "From" address for form submission emails
 
