@@ -30,7 +30,7 @@ Add a html form to your website with two hidden input fields like the following:
 Here is an example of a working form:
 
 <pre class="prettyprint lang-html">
-    &lt;form method="post" action="https://cgi.unimelb.edu.au/cgi-bin/cgi-mailer.cgi"&gt;
+    &lt;form method="post" action="http://example.com/cgi-bin/cgi-mailer.pl"&gt;
     &lt;input type="hidden" name="destination" value="example@unimelb.edu.au"&gt;
     &lt;input type="hidden" name="subject" value="testing cgi-mailer"&gt;
     &lt;b&gt;Name:&lt;/b&gt; &lt;input type="text" name="name" size="30"&gt;&lt;br/&gt;
@@ -39,9 +39,9 @@ Here is an example of a working form:
         &lt;option value="red"&gt;Feedback&lt;/option&gt;
         &lt;option value="green" selected="selected"&gt;Question&lt;/option&gt;
         &lt;option value="blue"&gt;Other&lt;/option&gt;
-    &lt;/select&gt;
+    &lt;/select&gt;&lt;br/&gt;
     &lt;textarea name="message"&gt;
-    &lt;/textarea&gt;
+    &lt;/textarea&gt;&lt;br/&gt;
     &lt;input type="submit" value="Send message"&gt;
     &lt;/form&gt;
 </pre>
