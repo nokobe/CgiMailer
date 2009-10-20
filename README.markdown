@@ -95,7 +95,7 @@ the user to fill in that particular field.
 
 # Further information
 
-## Handling case where filename is index.html
+## Adding a for to web pages that don't end in .html
 
 In some cases the URL of your form will not end in _.html_ (i.e. where the
 URL of the page ends in '/'), in this case you will need to include a hidden
