@@ -1,3 +1,14 @@
+# Installing CgiMailer
+
+CgiMailer is written in perl and requres the following PERL libraries to be installed
+for it to work correctly:
+
+ - MIME::Lite
+ - Net::SMTP
+ - LWP::UserAgent
+
+Once the PERL libraries are installed, simply add the cgi-mailer.pl script file
+into the cgi-bin folder on your webserver.
 
 # How to use CgiMailer
 
@@ -6,7 +17,7 @@
 The form itself should _POST_ to the URL that CgiMailer has been installed:
 
 <pre class="prettyprint lang-html">
-    &lt;form method="post" action="https://cgi.unimelb.edu.au/cgi-bin/cgi-mailer.cgi"&gt;
+    &lt;form method="post" action="http://example.com/cgi-bin/cgi-mailer.pl"&gt;
 </pre>
 
 Add a html form to your website with two hidden input fields like the following:
