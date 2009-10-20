@@ -33,17 +33,15 @@ Here is an example of a working form:
     &lt;form method="post" action="https://cgi.unimelb.edu.au/cgi-bin/cgi-mailer.cgi"&gt;
     &lt;input type="hidden" name="destination" value="example@unimelb.edu.au"&gt;
     &lt;input type="hidden" name="subject" value="testing cgi-mailer"&gt;
-    &lt;input type="text" name="one" size="20"&gt;
-    &lt;input type="text" name="two" size="20"&gt;
-    &lt;input type="text" name="three" size="20"&gt;&lt;br/&gt;
-    &lt;input type="text" name="four" size="20"&gt;
-    &lt;input type="text" name="five" size="20"&gt;
-    &lt;input type="text" name="six" size="20"&gt;&lt;br/&gt;
-    &lt;select name="list"&gt;
-        &lt;option value="red"&gt;Red&lt;/option&gt;
-        &lt;option value="green" selected="selected"&gt;Green&lt;/option&gt;
-        &lt;option value="blue"&gt;Blue&lt;/option&gt;
+    &lt;b&gt;Name:&lt;/b&gt; &lt;input type="text" name="name" size="30"&gt;&lt;br/&gt;
+    &lt;b&gt;Email address:&lt;/b&gt; &lt;input type="text" name="email_address" size="30"&gt;&lt;br/&gt;
+    &lt;select name="question"&gt;
+        &lt;option value="red"&gt;Feedback&lt;/option&gt;
+        &lt;option value="green" selected="selected"&gt;Question&lt;/option&gt;
+        &lt;option value="blue"&gt;Other&lt;/option&gt;
     &lt;/select&gt;
+    &lt;textarea name="message"&gt;
+    &lt;/textarea&gt;
     &lt;input type="submit" value="Send message"&gt;
     &lt;/form&gt;
 </pre>
@@ -59,14 +57,11 @@ Every time a word starts with $ it will be replaced with the user submitted data
 This example is based upon the example html form above:
 
 <pre>
-First Value: $one
-Third Value: $three
+You have a new message from $name with email address $email_address
 --------------------------------
-Fourth: $four; Second: $two
+$question
 --------------------------------
-Fifth: $five; Sixth: $six
---------------------------------
-List option: $list
+$message
 </pre>
 
 The format file must be uploaded to the same directory as the HTML form,
