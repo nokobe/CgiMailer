@@ -12,6 +12,8 @@ into the cgi-bin folder on your webserver.
 
 # How to use CgiMailer
 
+Below is a tutorial on how to use CgiMailer. For those in a hurry, you could download the example files at http://github.com/dongyage/CgiMailer/tree/master/example/
+
 ## 1. Creating the HTML form
 
 The form itself should _POST_ to the URL that CgiMailer has been installed:
@@ -66,8 +68,8 @@ $message
 
 The format file must be uploaded to the same directory as the HTML form,
 and with the same name as the form, but with an extension of _.data_.
-_i.e._ If your form is _myform.html_, then your
-       format file must be called _myform.data_.
+_i.e._ If your form is _myform.html_, then your format file must be
+called _myform.data_.
 
 ## 3. Creating a response file
 
