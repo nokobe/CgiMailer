@@ -100,7 +100,7 @@ email_address   Email address
 
 # Further information
 
-## Adding a for to web pages that don't end in .html
+## Handling web pages that don't end in .html
 
 In some cases the URL of your form will not end in _.html_ (i.e. where the
 URL of the page ends in '/'), in this case you will need to include a hidden
@@ -161,10 +161,10 @@ they will not receive the email response.
 # Troubleshooting
 
 Other message headers can be set using inputs of the form
-<tt>header:&lt;header-name&gt;</tt> For example, to set the
-<b>Reply-To:</b> header, use the html &lt;input
+`header:&lt;header-name&gt;` For example, to set the
+<b>Reply-To:</b> header, use the html `&lt;input
 name=&quot;header:Reply-To&quot; value=&quot;j.smith@domain.com&quot;
-type=&quot;hidden&quot;&gt;.</p>
+type=&quot;hidden&quot;&gt;`.</p>
 
 ## Referring URL
 
