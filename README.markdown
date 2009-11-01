@@ -160,11 +160,10 @@ they will not receive the email response.
 
 # Troubleshooting
 
-Other message headers can be set using inputs of the form
-`header:&lt;header-name&gt;` For example, to set the
-<b>Reply-To:</b> header, use the html `&lt;input
-name=&quot;header:Reply-To&quot; value=&quot;j.smith@domain.com&quot;
-type=&quot;hidden&quot;&gt;`.</p>
+You can specify that other email headers be included in the email,
+for example:
+
+    <input name="header:Reply-To" value="j.smith@example.com" type="hidden">
 
 ## Referring URL
 
