@@ -36,11 +36,11 @@ Here is an example of a working form:
     &lt;b&gt;Name:&lt;/b&gt; &lt;input type="text" name="name" size="30"&gt;&lt;br/&gt;
     &lt;b&gt;Email address:&lt;/b&gt; &lt;input type="text" name="email_address" size="30"&gt;&lt;br/&gt;
     &lt;select name="question"&gt;
-        &lt;option value="red"&gt;Feedback&lt;/option&gt;
-        &lt;option value="green" selected="selected"&gt;Question&lt;/option&gt;
-        &lt;option value="blue"&gt;Other&lt;/option&gt;
+        &lt;option value="feedback"&gt;Feedback&lt;/option&gt;
+        &lt;option value="question" selected="selected"&gt;Question&lt;/option&gt;
+        &lt;option value="other"&gt;Other&lt;/option&gt;
     &lt;/select&gt;&lt;br/&gt;
-    &lt;textarea name="message"&gt;
+    &lt;textarea name="message" rows="3" cols="40"&gt;
     &lt;/textarea&gt;&lt;br/&gt;
     &lt;input type="submit" value="Send message"&gt;
     &lt;/form&gt;
@@ -92,6 +92,11 @@ lines of __field-name&lt;tab&gt;Description__. Each field name
 will be checked against the input to see if it isn't empty. If
 it is, an error will be shown using the Description to instruct
 the user to fill in that particular field.
+
+<pre>
+name    Name
+email_address   Email address
+</pre>
 
 # Further information
 
