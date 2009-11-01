@@ -1,0 +1,19 @@
+<html>
+<body>
+
+<form method="post" action="http://cgimailer.unimelb.edu.au/cgi-mailer.pl">
+    <input type="hidden" name="destination" value="jrhoden@unimelb.edu.au">
+    <input type="hidden" name="subject" value="testing cgi-mailer">
+    <b>Name:</b><input type="text" name="name" size="20"/><br/>
+    <b>Email:</b><input type="text" name="two" size="20"/><br/>
+    <textarea name="message" rows="4" cols="40"></textarea><br/>
+    <b>Query type:</b><select name="query_type"><br/>
+        <option value="question">Question</option>
+        <option value="feedback" selected="selected">Feedback</option>
+        <option value="comment">Comment</option>
+    </select><br/>
+    <input type="submit" value="Ask question"/>
+</form>
+
+</body>
+</html>

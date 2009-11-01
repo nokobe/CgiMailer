@@ -173,7 +173,7 @@ my $footer = '
 			print $preamble;
 			print $data;
 			print $footer;
-			&log_access();
+			log_access();
 			exit(0);
 		}
 	}
@@ -301,7 +301,7 @@ my $footer = '
 		$msg->send('smtp', $smtp);
 	}
 
-	&log_access();
+	log_access();
 
 	select STDOUT;
 	print $http_header;
@@ -324,7 +324,7 @@ sub error {
 	print $data;
 	print $footer;
 
-	&log_access($errstr);
+	log_access($errstr);
 
 	exit(0);
 }
@@ -388,8 +388,8 @@ sub URLget {
 
 	$ua = new LWP::UserAgent;
 	$ua->agent("cgi-mailer/$version");
-	$ua->timeout(1);
-	$ua->proxy(['http'], 'http://wwwproxy.unimelb.edu.au:8000');
+	$ua->timeout(10);
+	#$ua->proxy(['http'], 'http://wwwproxy.unimelb.edu.au:8000');
 
 	my $req = new HTTP::Request GET => "$URL";
 
