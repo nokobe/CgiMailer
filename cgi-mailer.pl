@@ -17,7 +17,7 @@ use MIME::Lite;
 use Net::SMTP;
 use LWP::UserAgent;
 
-my $version = '2.1';
+my $version = '2.1->mb1.0';
 my $smtp = 'smtp.unimelb.edu.au';
 my $from_default = 'cgi-mailer submission <no-reply@unimelb.edu.au>';
 my $log = "/var/log/httpd/cgi-mailer.log";
@@ -173,7 +173,7 @@ my $footer = '
 			print $preamble;
 			print $data;
 			print $footer;
-			log_access();
+			logInfo("Completed Submission (type a)");
 			exit(0);
 		}
 	}
@@ -194,7 +194,7 @@ my $footer = '
 	if (exists $INPUT{'mailtouser'} && exists $INPUT{$INPUT{'mailtouser'}} ) {
 		my $user_addr = $INPUT{$INPUT{'mailtouser'}};
 		$user_addr =~ /^\s*([-_\@\w.,]+)\s*$/;
-		$destination .= ",${checked_address}";
+		$destination .= ",$1";
 	}
 
 	$subject = $INPUT{'subject'};
@@ -301,14 +301,14 @@ my $footer = '
 		$msg->send('smtp', $smtp);
 	}
 
-	log_access();
-
 	select STDOUT;
 	print $http_header;
 	print $preamble if $default;
 	print $data if $default;
 	print $response unless $default;
 	print $footer if $default;
+
+	logInfo("Completed Submission (type b)");
 	exit(0);
 
 sub error {
@@ -324,8 +324,7 @@ sub error {
 	print $data;
 	print $footer;
 
-	log_access($errstr);
-
+	logError($errstr);
 	exit(0);
 }
 
@@ -398,11 +397,10 @@ sub URLget {
 
 	if ($res->is_success) {
 		$ret = $res->content;
+		logInfo("Got ${URL}");
 	} else {
 		$ret = '%%%ERROR%%%';
 	}
-
-	log_access("Remote domain - fetching ${URL}");
 
 	return $ret;
 }
@@ -423,18 +421,24 @@ sub time_now {
 	return $now;
 }
 
+sub logInfo  { log_access("INFO", shift); }
+sub logError { log_access("ERROR", shift); }
+
 sub log_access {
-	my $errstr = pop(@_);
+	my ($type, $msg) = @_;
 	my $date;
 
 	$date = &time_now();
 	if(open LOG,">> $log") {
-		print LOG "[$date] host=[$ENV{'REMOTE_HOST'}] ".
-			"referer=[$ENV{'HTTP_REFERER'}] data=[$format_url] " .
-			"resp=[$response_url] to=[$destination] subject=[$subject] ".
-			"reply-to=[$reply_to]";
-		print LOG " ERROR=[$errstr]" if $errstr;
-		print LOG " from=[$from_addr]" if $from_addr;
+		print LOG "[$date] $type: host=[$ENV{'REMOTE_ADDR'}]";
+		print LOG " referer=[$ENV{'HTTP_REFERER'}]"	if $ENV{'HTTP_REFERER'};
+		print LOG " data=[$format_url]"			if $format_url;
+		print LOG " resp=[$response_url]"		if $response_url;
+		print LOG " to=[$destination]"			if $destination;
+		print LOG " subject=[$subject]"			if $subject;
+		print LOG " reply-to=[$reply_to]"		if $reply_to;
+		print LOG " from=[$from_addr]"			if $from_addr;
+		print LOG " $msg"				if $msg;
 		print LOG "\n";
 		close LOG;
 	}
