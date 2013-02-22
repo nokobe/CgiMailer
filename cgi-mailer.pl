@@ -17,7 +17,9 @@ use MIME::Lite;
 use Net::SMTP;
 use LWP::UserAgent;
 
-my $version = '2.1->mb1.0';
+# branched from https://github.com/dongyage/CgiMailer at version 2.1
+my $version = '2.5';
+
 my $smtp = 'smtp.unimelb.edu.au';
 my $from_default = 'cgi-mailer submission <no-reply@unimelb.edu.au>';
 my $log = "/var/log/httpd/cgi-mailer.log";
@@ -51,6 +53,11 @@ my $footer = '
 	
 	# get the format file location
 	$url = $INPUT{'CgiMailerReferer'} || $ENV{'HTTP_REFERER'};
+
+	if (scalar keys %INPUT == 0) {
+		render( "<h2>No form submission found</h2>" );
+		exit 0;
+	}
 
 	if(! $url) {
 		error("Your browser or proxy server is not sending ".
@@ -125,8 +132,8 @@ my $footer = '
 	if($req =~ /%%%ERROR%%%/) {
 		# Check for default value
 		$req = &URLget($default_url);
-		$req_url = $default_url;
 		$required_fields = 0;
+		$req_url = ""; # not used, so clear it now, to keep useless info from the logs
 	} else { 		#$req !~ /%%%ERROR%%%/ 
 		$required_fields = 1;
 		@lines = split(/[\013\015\r\n]+/,$req);
@@ -138,8 +145,8 @@ my $footer = '
 			push(@required_fields,$field_name);
 		}
 	}
-	push(@required_fields, 'destination') 
-		if(!grep(/^destination$/,@required_fields));
+#	push(@required_fields, 'destination') 
+#		if(!grep(/^destination$/,@required_fields));
 
 	foreach my $key (keys(%INPUT)) {
 		# get the mail headers from the form input
@@ -151,41 +158,29 @@ my $footer = '
 		}
 	}
 	# check if required fields have been filled in
+	@missing = ();
 	foreach my $r_field (@required_fields) {
 		my $content = $INPUT{$r_field};
 		$content =~ s/^\s*$//;
 		if(! $content || length($content) == 0) {
-			$data = "  <h2>CGI Mailer: Error</h2>\n" .
-			 		"  <p>An error has occurred while ".
-					"attempting to submit your form:</p>\n" .
-			 		"  <blockquote>The input field ".
-					"<strong>$required{$r_field}</strong> " .
-					"           is <font color=\"#FF0000\">".
-					"required</font>\n" .
-					"           and must be filled in before ".
-					"you can submit the form.\n" .
-					" </blockquote>\n" .
-					"  <p>Please go back, fill in the required ".
-					"field and re-submit the form.</p>\n";
-
-			select STDOUT;
-			print $http_header;
-			print $preamble;
-			print $data;
-			print $footer;
-			logInfo("Completed Submission (type a)");
-			exit(0);
+			push @missing, ($required{$r_field} ? $required{$r_field} : $r_field) ;
 		}
+	}
+	if (@missing) {
+		$data = "  <h2>CGI Mailer: Error</h2>\nThe following required fields are missing:\n<blockquote><ul>\n";
+		foreach (@missing) {
+			$data .= "<li><strong>$_</strong></li>";
+		}
+		$data .= "</ul></blockquote>\n";
+		render($data);
+		exit(0);
 	}
 
 	# get necessary info for mail headers
 	$destination = $INPUT{'destination'};
 	if(!$destination) {
-		$err_text = "You must add a hidden field to specify ".
-					"the destination of the email:<br>" .
-					"&lt;input type=&quot;hidden&quot; ".
-					"name=&quot;destination&quot; " .
-					"value=&quot;foo\@bar.com&quot;&gt;";
+		$err_text = "You must add a hidden field to specify the destination of the email:<br>" .
+			"eg. &lt;input type=&quot;hidden&quot; name=&quot;destination&quot; value=&quot;foo\@bar.com&quot;&gt;";
 		error($err_text);
 	}
 
@@ -232,18 +227,48 @@ my $footer = '
 		# grab the format file
 		$format = &URLget($url);
 
+		$savedError = "";
 		if ($format =~ /%%%ERROR%%%/ ) {
+			$savedError = $format;			# want to base any diagnostics on the FIRST retrieval attempt
 			# Check default file
 			$format = &URLget($default_url);
 			$format_url = $default_url;
 		}
 
-		error("Couldn't get format file: $url")
-			if( $format =~ /%%%ERROR%%%/ );
-
-		# substitute values for variables in the format file
-		$format =~ s/\$ENV\{\'?([a-zA-Z0-9\_\-\:]+)\'?\}/$ENV{$1}/g;
-		$format =~ s/\$([a-zA-Z0-9\_\-\:]+)/$INPUT{$1}/g;
+		if( $format =~ /%%%ERROR%%%/ ){
+			# ok. couldn't get format file. Use default
+			$format = "User form submission\nDetails:\n\n";
+			foreach (sort keys %INPUT) {
+				$format .= "\t$_: $INPUT{$_}\n";
+			}
+			# Diagnostics... how have we failed?
+			if ($savedError =~ /404/) {
+				$diagnostics .= "\nCGI-mailer WARNING: The data format file ($url) was not found.\n";
+				$diagnostics .= "A default format has been used.\n";
+				$diagnostics .= "\nIf you do not wish to use a data format file and do not wish to see this warning message,\n";
+				$diagnostics .= "please include a hidden field in your form named \"nodata\".\n";
+				$diagnostics .= "\teg: <input type=\"hidden\" name=\"nodata\" value=\"true\">";
+			} else {
+				$diagnostics .= "\nCGI-mailer WARNING: The data format file ($url) could not be retrieved.\n";
+				$diagnostics .= "The following error occured:\n";
+				$diagnostics .= "\n\t$savedError\n";
+				$diagnostics .= "A default format has been used\n";
+				$diagnostics .= "\nThis service was recently migrated to a new server. It is possible you are seeing this error because your site is not configured to\n";
+				$diagnostics .= "allow the new server access. Please check that you have an \"allow from 128.250.158.226\" in your .htaccess file\n";
+				$diagnostics .= "For further details, please see the Documentation at http://www.unimelb.edu.au/cgi-mailer/documentation.html";
+			}
+			$format_url = ""; # not used, so clear it now, to keep useless info from the logs
+		} else {
+			# substitute values for variables in the format file
+			$format =~ s/\$ENV\{\'?([a-zA-Z0-9\_\-\:]+)\'?\}/$ENV{$1}/g;
+			$format =~ s/\$([a-zA-Z0-9\_\-\:]+)/$INPUT{$1}/g;
+		}
+	} else {
+		# just plonk down all the data we have
+		$format = "User form submission\nDetails:\n\n";
+		foreach (sort keys %INPUT) {
+			$format .= "\t$_: $INPUT{$_}\n";
+		}
 	}
 
 	$default_url = $url = $orig_url;
@@ -271,12 +296,12 @@ my $footer = '
 	if($response !~ /%%%ERROR%%%/) {
 		$data = $response if($response);
 	} else {
-		$data = "  <h3>CGI Mailer: Submission Successful</h3>\n" .
-			"  <p>Your form has been successfully ".
-			"submitted by the server\n </p>";
+		$data = "  <h2>CGI Mailer: Submission Successful</h2>\n" .
+			"  <p>Your form has been successfully submitted\n </p>";
+		$response_url = ""; # not used, so clear it now, to keep useless info from the logs
 	}
 
-	if( $INPUT{'nodata'} ne 'true') {
+	if( $INPUT{'nosubmit'} ne 'true') {
 		# mail the formatted message
 		my %mail;
 		$mail{To} = $destination;
@@ -296,35 +321,49 @@ my $footer = '
 
 		# Translate (Windows|Unix|Mac) EOL with local EOL
 		$format =~ s/(?:\x0d\x0a|\x0a|\x0d)/\n/g;
-
-		my $msg = MIME::Lite->new(%mail, Data=>$format);
+		my $msg = MIME::Lite->new(%mail, Data=>"$format$diagnostics");
 		$msg->send('smtp', $smtp);
 	}
 
-	select STDOUT;
-	print $http_header;
-	print $preamble if $default;
-	print $data if $default;
-	print $response unless $default;
-	print $footer if $default;
+	if ($default) {
+		render($data);
+	} else {
+		render($response, 1);
+	}
 
-	logInfo("Completed Submission (type b)");
+	logInfo("Completed Submission");
 	exit(0);
 
+# render: render a web page
+# @param string $text - information to be rendered 
+# @param boolean $standalone - is the text a standalone page
+
+sub render {
+	my ($body, $standalone) = @_;
+
+	if ($standalone) {
+		select STDOUT;
+		print $http_header;
+		print $body;
+		print "\n";
+	} else {
+		select STDOUT;
+		print $http_header;
+		print $preamble;
+		print $body;
+		print "<p><input type=\"button\" value=\"Go back to the form\" onclick=\"history.back(-1)\" /></p>";
+		print $footer;
+		print "\n";
+	}
+}
+
 sub error {
-	my $errstr = pop(@_);
-	$data = "  <h2>CGI Mailer: Error</h2>\n" .
-			"  <p>An error has occurred while attempting to submit your form:</p>\n" .
-			"  <blockquote><b>$errstr</b></blockquote>\n" .
-			"  <p>Please report this error to the maintainer of the form</p>\n";
+	my $message = shift;
+	my $text = "  <h2>CGI Mailer: Configuration Error</h2>\n" .
+			"$message\n";
 
-	select STDOUT;
-	print $http_header;
-	print $preamble;
-	print $data;
-	print $footer;
-
-	logError($errstr);
+	render($text);
+	logError($message);
 	exit(0);
 }
 
@@ -400,6 +439,7 @@ sub URLget {
 		logInfo("Got ${URL}");
 	} else {
 		$ret = '%%%ERROR%%%';
+		$ret .= " ".$res->status_line."\n";
 	}
 
 	return $ret;
@@ -430,10 +470,12 @@ sub log_access {
 
 	$date = &time_now();
 	if(open LOG,">> $log") {
-		print LOG "[$date] $type: host=[$ENV{'REMOTE_ADDR'}]";
+		print LOG "[$date] $type:";
+		print LOG " host=[$ENV{'REMOTE_ADDR'}]";
 		print LOG " referer=[$ENV{'HTTP_REFERER'}]"	if $ENV{'HTTP_REFERER'};
 		print LOG " data=[$format_url]"			if $format_url;
 		print LOG " resp=[$response_url]"		if $response_url;
+		print LOG " req=[$req_url]"			if $req_url;
 		print LOG " to=[$destination]"			if $destination;
 		print LOG " subject=[$subject]"			if $subject;
 		print LOG " reply-to=[$reply_to]"		if $reply_to;
